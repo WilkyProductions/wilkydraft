@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Local 86'd — Draft Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e1315;
+    --panel:#161d20;
+    --panel-2:#1c2427;
+    --line:#26302f;
+    --text:#eaf0ee;
+    --muted:#8a9a97;
+    --muted-2:#5f6e6b;
+    --amber:#f5b53f;
+    --amber-dim:#5a4a26;
+    --green:#3ecf7e;
+    --qb:#b28dfb;
+    --rb:#3ecf7e;
+    --wr:#5aa9f8;
+    --te:#f5b53f;
+    --k:#9aa8a5;
+    --def:#f0715c;
+    --danger:#f0715c;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; background:var(--bg); color:var(--text);
+    font-family:'Inter',sans-serif;
+    font-variant-numeric:tabular-nums;
+  }
+  .display{font-family:'Anton',sans-serif; letter-spacing:0.02em;}
+
+  /* ---- Top bar ---- */
+  header{
+    position:sticky; top:0; z-index:20;
+    background:linear-gradient(180deg, #10171a 0%, #0e1315 100%);
+    border-bottom:1px solid var(--line);
+    padding:14px 18px 12px;
+  }
+  .headrow{display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px;}
+  .title{font-size:22px; text-transform:uppercase; color:var(--text);}
+  .title span{color:var(--amber);}
+  .subtitle{font-size:12px; color:var(--muted); margin-top:-2px;}
+  .controls{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; align-items:center;}
+  #search{
+    flex:1; min-width:160px;
+    background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    padding:9px 12px; border-radius:7px; font-size:14px; font-family:'Inter',sans-serif;
+  }
+  #search:focus{outline:none; border-color:var(--amber);}
+  .pill{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--muted);
+    padding:8px 13px; border-radius:20px; font-size:12.5px; font-weight:700;
+    cursor:pointer; text-transform:uppercase; letter-spacing:0.03em; user-select:none;
+    transition:all .12s ease;
+  }
+  .pill:hover{border-color:var(--muted-2); color:var(--text);}
+  .pill.active{background:var(--amber); border-color:var(--amber); color:#1a1400;}
+  .pill.pos-QB.active{background:var(--qb); border-color:var(--qb); color:#1a1130;}
+  .pill.pos-RB.active{background:var(--rb); border-color:var(--rb); color:#08240f;}
+  .pill.pos-WR.active{background:var(--wr); border-color:var(--wr); color:#071c30;}
+  .pill.pos-TE.active{background:var(--te); border-color:var(--te); color:#1a1400;}
+  .pill.pos-K.active, .pill.pos-DEF.active{background:var(--k); border-color:var(--k); color:#101615;}
+
+  /* ---- Layout ---- */
+  .wrap{display:flex; gap:18px; padding:18px; max-width:1180px; margin:0 auto; align-items:flex-start;}
+  .board{flex:1; min-width:0;}
+  .side{width:260px; flex-shrink:0; position:sticky; top:132px;}
+  @media (max-width:820px){
+    .wrap{flex-direction:column;}
+    .side{width:100%; position:static;}
+  }
+
+  /* ---- Tier dividers ---- */
+  .tier{
+    display:flex; align-items:center; gap:10px;
+    margin:22px 0 8px; padding:0 2px;
+  }
+  .tier:first-child{margin-top:4px;}
+  .tier-label{
+    font-family:'Anton',sans-serif; font-size:13px; color:var(--amber);
+    letter-spacing:0.06em; white-space:nowrap;
+  }
+  .tier-desc{font-size:11px; color:var(--muted-2); white-space:nowrap;}
+  .tier-rule{flex:1; height:1px; background:repeating-linear-gradient(90deg, var(--amber-dim) 0 6px, transparent 6px 11px);}
+
+  /* ---- Player rows ---- */
+  .row{
+    display:flex; align-items:center; gap:12px;
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:9px; padding:10px 12px; margin-bottom:6px;
+    cursor:pointer; transition:all .1s ease;
+  }
+  .row:hover{border-color:var(--muted-2);}
+  .rank{
+    width:26px; text-align:center; font-size:13px; color:var(--muted-2); font-weight:700; flex-shrink:0;
+  }
+  .posbadge{
+    width:32px; text-align:center; font-size:10.5px; font-weight:800; padding:3px 0;
+    border-radius:5px; flex-shrink:0; letter-spacing:0.03em;
+  }
+  .posbadge.QB{background:rgba(178,141,251,.18); color:var(--qb);}
+  .posbadge.RB{background:rgba(62,207,126,.18); color:var(--rb);}
+  .posbadge.WR{background:rgba(90,169,248,.18); color:var(--wr);}
+  .posbadge.TE{background:rgba(245,181,63,.18); color:var(--te);}
+  .posbadge.K{background:rgba(154,168,165,.18); color:var(--k);}
+  .posbadge.DEF{background:rgba(240,113,92,.18); color:var(--def);}
+  .info{flex:1; min-width:0;}
+  .name{font-size:14.5px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:6px;}
+  .team{font-size:11.5px; color:var(--muted); margin-top:1px;}
+  .flag{
+    font-size:10px; color:var(--danger); border:1px solid var(--danger);
+    padding:1px 6px; border-radius:9px; font-weight:700; white-space:nowrap;
+  }
+  .note{font-size:11px; color:var(--muted-2); margin-top:2px; line-height:1.4;}
+  .state-btn{
+    font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.03em;
+    padding:6px 11px; border-radius:6px; flex-shrink:0; border:1px solid var(--line);
+    color:var(--muted); background:transparent;
+  }
+  .row.taken{opacity:0.38;}
+  .row.taken .name{text-decoration:line-through;}
+  .row.taken .state-btn{border-color:var(--muted-2); color:var(--muted-2);}
+  .row.mine{border-color:var(--green); background:rgba(62,207,126,.07);}
+  .row.mine .state-btn{background:var(--green); color:#08240f; border-color:var(--green);}
+
+  /* ---- Sidebar ---- */
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:11px;
+    padding:14px; margin-bottom:14px;
+  }
+  .card h3{margin:0 0 10px; font-family:'Anton',sans-serif; font-size:14px; letter-spacing:.04em; color:var(--amber); text-transform:uppercase;}
+  .slot{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:7px 0; border-bottom:1px solid var(--line); font-size:13px;
+  }
+  .slot:last-child{border-bottom:none;}
+  .slot-label{color:var(--muted); font-weight:700; width:52px; flex-shrink:0;}
+  .slot-player{flex:1; text-align:right; color:var(--text); font-weight:600; font-size:12.5px;}
+  .slot-player.empty{color:var(--muted-2); font-weight:400; font-style:italic;}
+  .reset-btn{
+    width:100%; margin-top:4px; background:var(--panel-2); border:1px solid var(--line);
+    color:var(--muted); padding:9px; border-radius:7px; font-size:12px; font-weight:700;
+    cursor:pointer; text-transform:uppercase; letter-spacing:.03em;
+  }
+  .reset-btn:hover{color:var(--danger); border-color:var(--danger);}
+  .empty-state{text-align:center; padding:40px 0; color:var(--muted-2); font-size:13px;}
+  .legend{font-size:11px; color:var(--muted-2); line-height:1.6;}
+  .legend b{color:var(--muted);}
+
+  /* ---- Bottom tab bar (mobile quick access) ---- */
+  body{padding-bottom:64px;}
+  .bottombar{
+    position:fixed; bottom:0; left:0; right:0; z-index:30;
+    display:flex; background:var(--panel); border-top:1px solid var(--line);
+  }
+  .bottombar button{
+    flex:1; padding:13px 6px; background:transparent; border:none;
+    color:var(--muted); font-family:'Inter',sans-serif; font-weight:800;
+    text-transform:uppercase; font-size:11.5px; letter-spacing:.03em; cursor:pointer;
+  }
+  .bottombar button:active{color:var(--amber);}
+  .bottombar button + button{border-left:1px solid var(--line);}
+
+  /* ---- Modal sheet ---- */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:40;
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .modal-backdrop.open{display:flex;}
+  .modal-sheet{
+    background:var(--panel); border-top-left-radius:16px; border-top-right-radius:16px;
+    width:100%; max-width:520px; max-height:78vh; overflow-y:auto;
+    padding:16px; border:1px solid var(--line); border-bottom:none;
+  }
+  .modal-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;}
+  .modal-title{margin:0; color:var(--amber); font-family:'Anton',sans-serif; letter-spacing:.04em; text-transform:uppercase; font-size:14px;}
+  .modal-close{background:var(--panel-2); border:1px solid var(--line); color:var(--muted); border-radius:6px; padding:6px 12px; font-size:11.5px; font-weight:700; cursor:pointer;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="headrow">
+    <div>
+      <div class="title display">Local 86'd <span>Draft Board</span></div>
+      <div class="subtitle">10-team PPR &middot; snake draft &middot; click a player to mark them Taken, click again for Mine &middot; <span id="saveIndicator" style="color:var(--green);">Ready</span></div>
+    </div>
+  </div>
+  <div class="controls">
+    <input id="search" type="text" placeholder="Search a player or team...">
+    <div class="pill pos-ALL active" data-pos="ALL">All</div>
+    <div class="pill pos-QB" data-pos="QB">QB</div>
+    <div class="pill pos-RB" data-pos="RB">RB</div>
+    <div class="pill pos-WR" data-pos="WR">WR</div>
+    <div class="pill pos-TE" data-pos="TE">TE</div>
+    <div class="pill pos-K" data-pos="K">K</div>
+    <div class="pill pos-DEF" data-pos="DEF">DEF</div>
+    <div class="pill" id="hideTaken" data-toggle="hide">Hide taken</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="board" id="board"></div>
+
+  <div class="side">
+    <div class="card">
+      <h3>My Roster</h3>
+      <div id="roster"></div>
+    </div>
+    <div class="card">
+      <h3>Save / Restore</h3>
+      <div class="legend" style="margin-bottom:10px;">Tap <b>Copy save code</b> anytime — it copies a short code to your clipboard. Paste it into Notes or a text to yourself. If you ever lose this page, reopen the board and tap <b>Restore from code</b>.</div>
+      <button class="reset-btn" id="exportBtn" style="margin-bottom:8px;">Copy save code</button>
+      <button class="reset-btn" id="importBtn">Restore from code</button>
+      <textarea id="codeBox" readonly style="display:none; width:100%; margin-top:8px; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:6px; padding:8px; font-size:11px; height:60px;"></textarea>
+    </div>
+    <div class="card">
+      <h3>How this works</h3>
+      <div class="legend">
+        <b>Tap once</b> = someone else drafted them (grays out).<br>
+        <b>Tap again</b> = you drafted them (fills your roster).<br>
+        <b>Tap a third time</b> = resets back to available.<br><br>
+        Your picks now save automatically to this browser. The save code is your backup — use it if you ever switch devices or clear your browser data.
+      </div>
+    </div>
+    <button class="reset-btn" id="resetAll">Reset entire board</button>
+  </div>
+</div>
+
+<div class="bottombar">
+  <button id="tabRoster">📋 My Roster</button>
+  <button id="tabSave">💾 Save / Restore</button>
+</div>
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal-sheet" id="modalSheet"></div>
+</div>
+
+<script>
+const PLAYERS = [
+// Tier 1
+{r:1,n:"Bijan Robinson",p:"RB",t:"ATL",tier:1},
+{r:2,n:"Jahmyr Gibbs",p:"RB",t:"DET",tier:1},
+{r:3,n:"Christian McCaffrey",p:"RB",t:"SF",tier:1,flag:"THIN DEPTH",note:"Elite when healthy, but SF's backup RBs are both banged up. Injury history is real."},
+{r:4,n:"Ja'Marr Chase",p:"WR",t:"CIN",tier:1},
+{r:5,n:"Puka Nacua",p:"WR",t:"LAR",tier:1},
+{r:6,n:"Jaxon Smith-Njigba",p:"WR",t:"SEA",tier:1},
+{r:7,n:"Jonathan Taylor",p:"RB",t:"IND",tier:1},
+{r:8,n:"De'Von Achane",p:"RB",t:"MIA",tier:1},
+// Tier 2
+{r:9,n:"Amon-Ra St. Brown",p:"WR",t:"DET",tier:2},
+{r:10,n:"James Cook III",p:"RB",t:"BUF",tier:2},
+{r:11,n:"Derrick Henry",p:"RB",t:"BAL",tier:2},
+{r:12,n:"Justin Jefferson",p:"WR",t:"MIN",tier:2},
+{r:13,n:"CeeDee Lamb",p:"WR",t:"DAL",tier:2},
+{r:14,n:"Chase Brown",p:"RB",t:"CIN",tier:2},
+{r:15,n:"Kenneth Walker III",p:"RB",t:"KC",tier:2},
+{r:16,n:"Brock Bowers",p:"TE",t:"LV",tier:2,note:"Best TE in the game by a wide margin — worth reaching for if the run starts."},
+// Tier 3
+{r:17,n:"Drake London",p:"WR",t:"ATL",tier:3},
+{r:18,n:"Trey McBride",p:"TE",t:"ARI",tier:3},
+{r:19,n:"Rashee Rice",p:"WR",t:"KC",tier:3},
+{r:20,n:"Jeremiyah Love",p:"RB",t:"ARI",tier:3},
+{r:21,n:"Saquon Barkley",p:"RB",t:"PHI",tier:3},
+{r:22,n:"Josh Jacobs",p:"RB",t:"GB",tier:3},
+{r:23,n:"Omarion Hampton",p:"RB",t:"LAC",tier:3},
+{r:24,n:"Ashton Jeanty",p:"RB",t:"LV",tier:3,flag:"ANKLE",note:"Sprained ankle in practice — sounds like it isn't the scary knee injury first feared, but timetable is unconfirmed. Check status before you're on the clock."},
+{r:25,n:"Malik Nabers",p:"WR",t:"NYG",tier:3,flag:"MONITOR",note:"Trending toward being ready for Week 1, practicing without the red non-contact jersey — good sign."},
+// Tier 4
+{r:26,n:"A.J. Brown",p:"WR",t:"NE",tier:4},
+{r:27,n:"Chris Olave",p:"WR",t:"NO",tier:4},
+{r:28,n:"Josh Allen",p:"QB",t:"BUF",tier:4,note:"QB1 — if you want to lock in elite QB production early, this is the pick."},
+{r:29,n:"George Pickens",p:"WR",t:"DAL",tier:4},
+{r:30,n:"Javonte Williams",p:"RB",t:"DAL",tier:4},
+{r:31,n:"Breece Hall",p:"RB",t:"NYJ",tier:4},
+{r:32,n:"Kyren Williams",p:"RB",t:"LAR",tier:4},
+{r:33,n:"Emeka Egbuka",p:"WR",t:"TB",tier:4},
+{r:34,n:"Garrett Wilson",p:"WR",t:"NYJ",tier:4},
+{r:35,n:"Colston Loveland",p:"TE",t:"CHI",tier:4},
+// Tier 5
+{r:36,n:"Lamar Jackson",p:"QB",t:"BAL",tier:5},
+{r:37,n:"Travis Etienne Jr.",p:"RB",t:"NO",tier:5},
+{r:38,n:"Quinshon Judkins",p:"RB",t:"CLE",tier:5},
+{r:39,n:"Nico Collins",p:"WR",t:"HOU",tier:5},
+{r:40,n:"Jayden Daniels",p:"QB",t:"WSH",tier:5},
+{r:41,n:"Zay Flowers",p:"WR",t:"BAL",tier:5},
+{r:42,n:"Tetairoa McMillan",p:"WR",t:"CAR",tier:5},
+{r:43,n:"DeVonta Smith",p:"WR",t:"PHI",tier:5},
+{r:44,n:"Jaylen Waddle",p:"WR",t:"DEN",tier:5},
+{r:45,n:"D'Andre Swift",p:"RB",t:"CHI",tier:5},
+// Tier 6
+{r:46,n:"Tyler Warren",p:"TE",t:"IND",tier:6},
+{r:47,n:"Cam Skattebo",p:"RB",t:"NYG",tier:6,flag:"CROWDED",note:"Giants signed Najee Harris and still have Tyrone Tracy Jr. — this backfield committee is muddier than the ADP suggests."},
+{r:48,n:"Drake Maye",p:"QB",t:"NE",tier:6},
+{r:49,n:"Bucky Irving",p:"RB",t:"TB",tier:6},
+{r:50,n:"Davante Adams",p:"WR",t:"LAR",tier:6},
+{r:51,n:"Ladd McConkey",p:"WR",t:"LAC",tier:6},
+{r:52,n:"Jalen Hurts",p:"QB",t:"PHI",tier:6},
+{r:53,n:"Harold Fannin Jr.",p:"TE",t:"CLE",tier:6},
+{r:54,n:"Bhayshul Tuten",p:"RB",t:"JAX",tier:6},
+// Tier 7 — mid rounds
+{r:55,n:"Terry McLaurin",p:"WR",t:"WSH",tier:7},
+{r:56,n:"Chubba Hubbard",p:"RB",t:"CAR",tier:7},
+{r:57,n:"Jadarian Price",p:"RB",t:"SEA",tier:7},
+{r:58,n:"Carnell Tate",p:"WR",t:"TEN",tier:7},
+{r:59,n:"Kyle Pitts Sr.",p:"TE",t:"ATL",tier:7},
+{r:60,n:"Justin Herbert",p:"QB",t:"LAC",tier:7},
+{r:61,n:"Tee Higgins",p:"WR",t:"CIN",tier:7},
+{r:62,n:"Rome Odunze",p:"WR",t:"CHI",tier:7,note:"Chicago's clear WR1 now that Luther Burden III is banged up — good value."},
+{r:63,n:"David Montgomery",p:"RB",t:"HOU",tier:7},
+{r:64,n:"Tony Pollard",p:"RB",t:"TEN",tier:7},
+{r:65,n:"George Kittle",p:"TE",t:"SF",tier:7},
+{r:66,n:"Rhamondre Stevenson",p:"RB",t:"NE",tier:7},
+{r:67,n:"TreVeon Henderson",p:"RB",t:"NE",tier:7},
+{r:68,n:"DK Metcalf",p:"WR",t:"PIT",tier:7},
+{r:69,n:"Kenneth Gainwell",p:"RB",t:"TB",tier:7},
+{r:70,n:"Jaxon Dart",p:"QB",t:"NYG",tier:7},
+{r:71,n:"Jaylen Warren",p:"RB",t:"PIT",tier:7},
+// Tier 8 — late-round value & sleepers
+{r:72,n:"Deebo Samuel Sr.",p:"WR",t:"SF",tier:8,note:"Signed after Ricky Pearsall's season-ending knee surgery — walks into real target share."},
+{r:73,n:"Juwan Johnson",p:"WR",t:"NO",tier:8,note:"Saints' No. 2 pass-catcher behind Olave with a WR-friendly target share while Jordyn Tyson is out."},
+{r:74,n:"Woody Marks",p:"RB",t:"HOU",tier:8,note:"Impressing in camp, near-even snap split with Montgomery. Great handcuff/upside stash."},
+{r:75,n:"Tyrone Tracy Jr.",p:"RB",t:"NYG",tier:8,flag:"CROWDED",note:"Part of the same muddy Giants backfield as Skattebo/Harris — talent is there, touches aren't guaranteed."},
+{r:76,n:"Najee Harris",p:"RB",t:"NYG",tier:8,flag:"CROWDED"},
+{r:77,n:"De'Zhaun Stribling",p:"WR",t:"SF",tier:8,note:"Rookie sleeper who could carve out snaps behind Evans/Samuel."},
+{r:78,n:"Luther Burden III",p:"WR",t:"CHI",tier:8,flag:"GROIN",note:"Missing the preseason with a groin injury; hopeful for Week 1 but his ADP has been sliding — Rome Odunze is the safer Bears WR right now."},
+{r:79,n:"Xavier Legette",p:"WR",t:"CAR",tier:8,note:"Snap share bump likely after Chris Brazzell's season-ending LCL tear."},
+{r:80,n:"Jalen Coker",p:"WR",t:"CAR",tier:8,note:"Biggest beneficiary of the Brazzell injury on target share — sleeper watch."},
+];
+
+const state = {}; // id -> 'taken' | 'mine'
+let posFilter = "ALL";
+let hideTaken = false;
+let searchTerm = "";
+const LOCAL_KEY = "local86d-draft-state-v1";
+
+function loadFromLocalStorage(){
+  try{
+    const raw = localStorage.getItem(LOCAL_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      Object.assign(state, parsed);
+    }
+  }catch(e){
+    // localStorage unavailable — picks just won't auto-persist this session
+  }
+}
+
+function saveToLocalStorage(){
+  try{
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
+    setSaveIndicator("Saved automatically");
+  }catch(e){
+    setSaveIndicator("Auto-save unavailable — use the save code instead");
+  }
+}
+
+function encodeState(){
+  // compact: "PlayerName:taken,PlayerName:mine,..."
+  const parts = Object.keys(state).map(k=>`${k}:${state[k]}`);
+  return btoa(unescape(encodeURIComponent(parts.join("|"))));
+}
+
+function decodeState(code){
+  const raw = decodeURIComponent(escape(atob(code.trim())));
+  const parts = raw.split("|").filter(Boolean);
+  const result = {};
+  parts.forEach(p=>{
+    const idx = p.lastIndexOf(":");
+    result[p.slice(0,idx)] = p.slice(idx+1);
+  });
+  return result;
+}
+
+const tierNames = {
+  1:["TIER 1","Elite — locks in any format"],
+  2:["TIER 2","Stud starters"],
+  3:["TIER 3","High-end starters"],
+  4:["TIER 4","Reliable starters"],
+  5:["TIER 5","Solid RB2/WR2 range"],
+  6:["TIER 6","Flex & QB streamers begin"],
+  7:["TIER 7","Depth & upside"],
+  8:["TIER 8","Late-round sleepers / handcuffs"],
+};
+
+const ROSTER_SLOTS = [
+  {label:"QB", accepts:["QB"]},
+  {label:"RB", accepts:["RB"]},
+  {label:"RB", accepts:["RB"]},
+  {label:"WR", accepts:["WR"]},
+  {label:"WR", accepts:["WR"]},
+  {label:"TE", accepts:["TE"]},
+  {label:"FLEX", accepts:["RB","WR","TE"]},
+  {label:"K", accepts:["K"]},
+  {label:"DEF", accepts:["DEF"]},
+  {label:"BN", accepts:["QB","RB","WR","TE","K","DEF"]},
+  {label:"BN", accepts:["QB","RB","WR","TE","K","DEF"]},
+  {label:"BN", accepts:["QB","RB","WR","TE","K","DEF"]},
+  {label:"BN", accepts:["QB","RB","WR","TE","K","DEF"]},
+  {label:"BN", accepts:["QB","RB","WR","TE","K","DEF"]},
+  {label:"BN", accepts:["QB","RB","WR","TE","K","DEF"]},
+];
+
+function pid(pl){ return pl.n; }
+
+function render(){
+  renderBoard();
+  renderRoster();
+}
+
+function renderBoard(){
+  const board = document.getElementById('board');
+  board.innerHTML = "";
+  let currentTier = null;
+  const term = searchTerm.trim().toLowerCase();
+
+  PLAYERS.forEach(pl=>{
+    if(posFilter!=="ALL" && pl.p!==posFilter) return;
+    if(term && !(pl.n.toLowerCase().includes(term) || pl.t.toLowerCase().includes(term))) return;
+    const st = state[pid(pl)];
+    if(hideTaken && st==="taken") return;
+
+    if(pl.tier !== currentTier){
+      currentTier = pl.tier;
+      const [label, desc] = tierNames[currentTier];
+      const div = document.createElement('div');
+      div.className = "tier";
+      div.innerHTML = `<div class="tier-label">${label}</div><div class="tier-desc">${desc}</div><div class="tier-rule"></div>`;
+      board.appendChild(div);
+    }
+
+    const row = document.createElement('div');
+    row.className = "row" + (st ? " "+st : "");
+    row.innerHTML = `
+      <div class="rank">${pl.r}</div>
+      <div class="posbadge ${pl.p}">${pl.p}</div>
+      <div class="info">
+        <div class="name">${pl.n} ${pl.flag ? `<span class="flag">${pl.flag}</span>`:""}</div>
+        <div class="team">${pl.t}</div>
+        ${pl.note ? `<div class="note">${pl.note}</div>` : ""}
+      </div>
+      <div class="state-btn">${st==="mine" ? "MINE" : st==="taken" ? "TAKEN" : "AVAILABLE"}</div>
+    `;
+    row.addEventListener('click', ()=>cycleState(pl));
+    board.appendChild(row);
+  });
+
+  if(board.innerHTML===""){
+    board.innerHTML = `<div class="empty-state">No players match. Try clearing the search or filter.</div>`;
+  }
+}
+
+function cycleState(pl){
+  const id = pid(pl);
+  const cur = state[id];
+  if(!cur){ state[id] = "taken"; }
+  else if(cur==="taken"){ state[id] = "mine"; }
+  else { delete state[id]; }
+  render();
+  saveToLocalStorage();
+}
+
+let currentModal = null; // null | 'roster' | 'save'
+
+function getRosterHTML(){
+  const mine = PLAYERS.filter(pl=>state[pid(pl)]==="mine");
+  const slots = ROSTER_SLOTS.map(s=>({...s, filled:null}));
+  const remaining = [...mine];
+  function tryFill(predicate){
+    for(const slot of slots){
+      if(slot.filled) continue;
+      if(!predicate(slot)) continue;
+      const idx = remaining.findIndex(pl=>slot.accepts.includes(pl.p));
+      if(idx>-1){ slot.filled = remaining[idx]; remaining.splice(idx,1); }
+    }
+  }
+  tryFill(s=>s.label!=="FLEX" && s.label!=="BN");
+  tryFill(s=>s.label==="FLEX");
+  tryFill(s=>s.label==="BN");
+
+  return slots.map(s=>`
+    <div class="slot">
+      <div class="slot-label">${s.label}</div>
+      <div class="slot-player ${s.filled?"":"empty"}">${s.filled ? s.filled.n : "—"}</div>
+    </div>
+  `).join("");
+}
+
+function renderRoster(){
+  const el = document.getElementById('roster');
+  if(el) el.innerHTML = getRosterHTML();
+  if(currentModal==='roster'){
+    const m = document.getElementById('modalRosterList');
+    if(m) m.innerHTML = getRosterHTML();
+  }
+}
+
+document.querySelectorAll('.pill[data-pos]').forEach(el=>{
+  el.addEventListener('click', ()=>{
+    document.querySelectorAll('.pill[data-pos]').forEach(p=>p.classList.remove('active'));
+    el.classList.add('active');
+    posFilter = el.dataset.pos;
+    render();
+  });
+});
+
+document.getElementById('hideTaken').addEventListener('click', function(){
+  hideTaken = !hideTaken;
+  this.classList.toggle('active', hideTaken);
+  render();
+});
+
+document.getElementById('search').addEventListener('input', (e)=>{
+  searchTerm = e.target.value;
+  render();
+});
+
+document.getElementById('resetAll').addEventListener('click', ()=>{
+  if(confirm("Reset the whole board? This clears every Taken/Mine mark.")){
+    Object.keys(state).forEach(k=>delete state[k]);
+    render();
+    saveToLocalStorage();
+  }
+});
+
+document.getElementById('exportBtn').addEventListener('click', ()=>{
+  const code = encodeState();
+  document.getElementById('codeBox').value = code;
+  document.getElementById('codeBox').style.display = "block";
+  document.getElementById('codeBox').select();
+  document.execCommand && document.execCommand('copy');
+  setSaveIndicator("Code copied — paste it somewhere safe (like Notes)");
+});
+
+document.getElementById('importBtn').addEventListener('click', ()=>{
+  const input = prompt("Paste your saved code:");
+  if(!input) return;
+  try{
+    const restored = decodeState(input);
+    Object.keys(state).forEach(k=>delete state[k]);
+    Object.assign(state, restored);
+    render();
+    saveToLocalStorage();
+    setSaveIndicator("Restored from code");
+  }catch(e){
+    alert("That code didn't look right — double check you copied the whole thing.");
+  }
+});
+
+function setSaveIndicator(text){
+  const el = document.getElementById('saveIndicator');
+  if(el) el.textContent = text;
+}
+
+function openModal(type){
+  currentModal = type;
+  const sheet = document.getElementById('modalSheet');
+  if(type==='roster'){
+    sheet.innerHTML = `
+      <div class="modal-header">
+        <h3 class="modal-title">My Roster</h3>
+        <button class="modal-close" id="modalCloseBtn">Close</button>
+      </div>
+      <div id="modalRosterList">${getRosterHTML()}</div>
+    `;
+  } else {
+    sheet.innerHTML = `
+      <div class="modal-header">
+        <h3 class="modal-title">Save / Restore</h3>
+        <button class="modal-close" id="modalCloseBtn">Close</button>
+      </div>
+      <div class="legend" style="margin-bottom:10px;">Tap <b>Copy save code</b> — it copies to your clipboard. Paste it into Notes. Tap <b>Restore from code</b> to bring a saved board back.</div>
+      <button class="reset-btn" id="modalExportBtn" style="margin-bottom:8px;">Copy save code</button>
+      <button class="reset-btn" id="modalImportBtn">Restore from code</button>
+      <textarea id="modalCodeBox" readonly style="display:none; width:100%; margin-top:8px; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:6px; padding:8px; font-size:11px; height:60px;"></textarea>
+    `;
+    document.getElementById('modalExportBtn').addEventListener('click', ()=>{
+      const code = encodeState();
+      const box = document.getElementById('modalCodeBox');
+      box.value = code;
+      box.style.display = "block";
+      box.select();
+      document.execCommand && document.execCommand('copy');
+      setSaveIndicator("Code copied — paste it somewhere safe (like Notes)");
+    });
+    document.getElementById('modalImportBtn').addEventListener('click', ()=>{
+      const input = prompt("Paste your saved code:");
+      if(!input) return;
+      try{
+        const restored = decodeState(input);
+        Object.keys(state).forEach(k=>delete state[k]);
+        Object.assign(state, restored);
+        render();
+        saveToLocalStorage();
+        setSaveIndicator("Restored from code");
+      }catch(e){
+        alert("That code didn't look right — double check you copied the whole thing.");
+      }
+    });
+  }
+  document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+  document.getElementById('modalBackdrop').classList.add('open');
+}
+
+function closeModal(){
+  currentModal = null;
+  document.getElementById('modalBackdrop').classList.remove('open');
+}
+
+document.getElementById('tabRoster').addEventListener('click', ()=>openModal('roster'));
+document.getElementById('tabSave').addEventListener('click', ()=>openModal('save'));
+document.getElementById('modalBackdrop').addEventListener('click', (e)=>{
+  if(e.target.id==='modalBackdrop') closeModal();
+});
+
+render();
+loadFromLocalStorage();
+render();
+setSaveIndicator(Object.keys(state).length ? "Restored your picks automatically" : "Ready");
+</script>
+</body>
+</html>
