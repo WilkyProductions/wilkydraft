@@ -180,9 +180,54 @@
   .modal-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;}
   .modal-title{margin:0; color:var(--amber); font-family:'Anton',sans-serif; letter-spacing:.04em; text-transform:uppercase; font-size:14px;}
   .modal-close{background:var(--panel-2); border:1px solid var(--line); color:var(--muted); border-radius:6px; padding:6px 12px; font-size:11.5px; font-weight:700; cursor:pointer;}
+
+  /* ---- Toast alerts with glow ---- */
+  #toastLayer{
+    position:fixed; top:14px; left:0; right:0; z-index:60;
+    display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none;
+  }
+  .toast{
+    pointer-events:auto;
+    max-width:420px; width:calc(100% - 32px);
+    background:var(--panel); border-radius:10px; padding:12px 14px;
+    font-size:13px; line-height:1.4; color:var(--text);
+    display:flex; gap:10px; align-items:flex-start;
+    animation: toast-in .25s ease-out, glow-pulse 1.4s ease-in-out infinite;
+    cursor:pointer;
+  }
+  .toast.run{ border:1px solid var(--danger); }
+  .toast.watch{ border:1px solid var(--amber); }
+  .toast.run{ animation: toast-in .25s ease-out, glow-pulse-red 1.4s ease-in-out infinite; }
+  .toast.watch{ animation: toast-in .25s ease-out, glow-pulse-amber 1.4s ease-in-out infinite; }
+  .toast .dot{font-size:16px; line-height:1;}
+  .toast .txt{flex:1;}
+  @keyframes toast-in{
+    from{opacity:0; transform:translateY(-10px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+  @keyframes glow-pulse-red{
+    0%,100%{box-shadow:0 0 6px 1px rgba(240,113,92,.35);}
+    50%{box-shadow:0 0 20px 6px rgba(240,113,92,.75);}
+  }
+  @keyframes glow-pulse-amber{
+    0%,100%{box-shadow:0 0 6px 1px rgba(245,181,63,.35);}
+    50%{box-shadow:0 0 20px 6px rgba(245,181,63,.75);}
+  }
+
+  /* ---- Sleeper sync panel ---- */
+  .sync-input{
+    width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    padding:8px 10px; border-radius:6px; font-size:12.5px; margin-bottom:8px; font-family:'Inter',sans-serif;
+  }
+  .sync-input:focus{outline:none; border-color:var(--amber);}
+  .sync-status{font-size:11.5px; padding:8px 10px; border-radius:6px; margin-bottom:8px; line-height:1.4;}
+  .sync-status.on{background:rgba(62,207,126,.12); color:var(--green); border:1px solid var(--green);}
+  .sync-status.off{background:var(--panel-2); color:var(--muted); border:1px solid var(--line);}
+  .sync-status.err{background:rgba(240,113,92,.12); color:var(--danger); border:1px solid var(--danger);}
 </style>
 </head>
 <body>
+<div id="toastLayer"></div>
 
 <header>
   <div class="headrow">
@@ -209,6 +254,20 @@
 
   <div class="side">
     <div class="card">
+      <h3>Sleeper Live Sync</h3>
+      <div id="syncStatus" class="sync-status off">Not connected — picks won't auto-update until you connect.</div>
+      <input class="sync-input" id="syncLeagueId" placeholder="Sleeper League ID">
+      <input class="sync-input" id="syncDraftId" placeholder="OR paste a Draft ID directly (for mock drafts)">
+      <input class="sync-input" id="syncUsername" placeholder="Your Sleeper username" value="DaddyShitTalk">
+      <button class="reset-btn" id="syncConnectBtn" style="margin-bottom:8px;">Connect &amp; start syncing</button>
+      <button class="reset-btn" id="syncDisconnectBtn" style="display:none;">Stop syncing</button>
+      <div class="legend" style="margin-top:8px;">Find your League ID in the Sleeper app: League &rarr; Settings, or in the web URL (sleeper.com/leagues/<b>xxxxxxxxxx</b>). <b>Mock drafts aren't part of a league</b> &mdash; for those, open the mock draft room and grab the ID from the URL (sleeper.com/draft/nfl/<b>xxxxxxxxxx</b>), then paste it into the Draft ID box instead.</div>
+    </div>
+    <div class="card">
+      <h3>Draft Pulse</h3>
+      <div id="alertsPanel"></div>
+    </div>
+    <div class="card">
       <h3>My Roster</h3>
       <div id="roster"></div>
     </div>
@@ -233,6 +292,7 @@
 </div>
 
 <div class="bottombar">
+  <button id="tabPulse">📡 Pulse</button>
   <button id="tabRoster">📋 My Roster</button>
   <button id="tabSave">💾 Save / Restore</button>
 </div>
@@ -333,6 +393,7 @@ const PLAYERS = [
 ];
 
 const state = {}; // id -> 'taken' | 'mine'
+let pickHistory = []; // ordered list of {n, p} for every player marked drafted (taken or mine), in the order it happened
 let posFilter = "ALL";
 let hideTaken = false;
 let searchTerm = "";
@@ -344,6 +405,11 @@ function loadFromLocalStorage(){
     if(raw){
       const parsed = JSON.parse(raw);
       Object.assign(state, parsed);
+      // rebuild pickHistory in the same order keys were saved
+      pickHistory = Object.keys(parsed).map(name=>{
+        const pl = PLAYERS.find(p=>p.n===name);
+        return pl ? {n:pl.n, p:pl.p} : null;
+      }).filter(Boolean);
     }
   }catch(e){
     // localStorage unavailable — picks just won't auto-persist this session
@@ -376,7 +442,71 @@ function decodeState(code){
   return result;
 }
 
+function computeAlerts(){
+  const alerts = [];
+  const last5 = pickHistory.slice(-5);
+  const posCount = {};
+  last5.forEach(e=>{ posCount[e.p] = (posCount[e.p]||0)+1; });
+  const rbwr = (posCount['RB']||0)+(posCount['WR']||0);
+
+  if(last5.length>=5 && rbwr>=4){
+    alerts.push({level:"run", text:"RB/WR run in progress — 4+ of the last 5 picks were RBs or WRs. Grab your next RB/WR target now before the tier empties."});
+  }
+
+  const totalQB = pickHistory.filter(e=>e.p==='QB').length;
+  if(totalQB>=6){
+    alerts.push({level:"run", text:`${totalQB} QBs are already off the board. If you don't have one yet, get one now — the position is thinning fast.`});
+  } else if(totalQB>=4){
+    alerts.push({level:"watch", text:`${totalQB} QBs drafted so far. Keep an eye on the position — a run may be starting.`});
+  }
+
+  const bowersGone = !!state["Brock Bowers"];
+  const mcbrideGone = !!state["Trey McBride"];
+  if(bowersGone && mcbrideGone){
+    alerts.push({level:"info", text:"Both Bowers and McBride are off the board. No rush on TE now — wait until rounds 7-8 for the next tier."});
+  } else if(bowersGone && !mcbrideGone){
+    alerts.push({level:"info", text:"Bowers is gone, but McBride is still there — your last shot at a true difference-making TE."});
+  }
+
+  const totalPicks = pickHistory.length;
+  const roughRound = Math.max(1, Math.ceil(totalPicks/10));
+  if(totalPicks>0 && roughRound<=13){
+    const kdefPicked = pickHistory.filter(e=>e.p==='K'||e.p==='DEF').length;
+    if(kdefPicked>=2){
+      alerts.push({level:"watch", text:"Some teams are already reaching for K/DEF early. Don't chase them — grab bench RB/WR depth instead and wait until the last two rounds."});
+    }
+  }
+
+  if(alerts.length===0){
+    alerts.push({level:"ok", text: totalPicks===0 ? "No picks marked yet. Alerts will appear here once the draft gets going." : "No runs detected right now — board looks normal, stick to the plan."});
+  }
+  return {alerts, roughRound, totalPicks};
+}
+
+function getAlertsHTML(){
+  const {alerts, roughRound, totalPicks} = computeAlerts();
+  const roundLine = totalPicks>0 ? `<div style="font-size:11px;color:var(--muted-2);margin-bottom:8px;">~${totalPicks} picks marked &middot; roughly Round ${roughRound}</div>` : "";
+  const colors = {run:"var(--danger)", watch:"var(--amber)", info:"var(--wr)", ok:"var(--muted)"};
+  const items = alerts.map(a=>`
+    <div style="border-left:3px solid ${colors[a.level]}; padding:8px 10px; margin-bottom:8px; background:var(--panel-2); border-radius:0 6px 6px 0; font-size:12.5px; line-height:1.4;">${a.text}</div>
+  `).join("");
+  return roundLine + items;
+}
+
+function renderAlerts(){
+  const {alerts} = computeAlerts();
+  const el = document.getElementById('alertsPanel');
+  if(el) el.innerHTML = getAlertsHTML();
+  if(currentModal==='pulse'){
+    const m = document.getElementById('modalAlertsPanel');
+    if(m) m.innerHTML = getAlertsHTML();
+  }
+  maybeToast(alerts);
+}
+
 const tierNames = {
+
+
   1:["TIER 1","Elite — locks in any format"],
   2:["TIER 2","Stud starters"],
   3:["TIER 3","High-end starters"],
@@ -407,9 +537,42 @@ const ROSTER_SLOTS = [
 
 function pid(pl){ return pl.n; }
 
+function normalizeName(s){
+  return (s||"").toLowerCase()
+    .replace(/[.'']/g,"")
+    .replace(/\b(jr|sr|ii|iii|iv|v)\b/g,"")
+    .replace(/[^a-z\s]/g,"")
+    .replace(/\s+/g," ")
+    .trim();
+}
+const PLAYERS_BY_NORM = {};
+PLAYERS.forEach(pl=>{ PLAYERS_BY_NORM[normalizeName(pl.n)] = pl; });
+
+let shownAlertKeys = new Set();
+function spawnToast(alert){
+  const layer = document.getElementById('toastLayer');
+  const div = document.createElement('div');
+  div.className = "toast " + alert.level;
+  div.innerHTML = `<div class="dot">${alert.level==='run' ? '🔴' : '🟡'}</div><div class="txt">${alert.text}</div>`;
+  div.addEventListener('click', ()=>div.remove());
+  layer.appendChild(div);
+  setTimeout(()=>{ div.style.opacity="0"; div.style.transition="opacity .4s"; setTimeout(()=>div.remove(),400); }, 8000);
+}
+function maybeToast(alerts){
+  alerts.forEach(a=>{
+    if(a.level==='run' || a.level==='watch'){
+      if(!shownAlertKeys.has(a.text)){
+        shownAlertKeys.add(a.text);
+        spawnToast(a);
+      }
+    }
+  });
+}
+
 function render(){
   renderBoard();
   renderRoster();
+  renderAlerts();
 }
 
 function renderBoard(){
@@ -457,9 +620,19 @@ function renderBoard(){
 function cycleState(pl){
   const id = pid(pl);
   const cur = state[id];
-  if(!cur){ state[id] = "taken"; }
-  else if(cur==="taken"){ state[id] = "mine"; }
-  else { delete state[id]; }
+  if(!cur){
+    state[id] = "taken";
+    pickHistory.push({n:pl.n, p:pl.p});
+  }
+  else if(cur==="taken"){
+    state[id] = "mine";
+    // already counted in pickHistory when it became taken — no new entry
+  }
+  else {
+    delete state[id];
+    const idx = pickHistory.findIndex(e=>e.n===pl.n);
+    if(idx>-1) pickHistory.splice(idx,1);
+  }
   render();
   saveToLocalStorage();
 }
@@ -522,6 +695,7 @@ document.getElementById('search').addEventListener('input', (e)=>{
 document.getElementById('resetAll').addEventListener('click', ()=>{
   if(confirm("Reset the whole board? This clears every Taken/Mine mark.")){
     Object.keys(state).forEach(k=>delete state[k]);
+    pickHistory = [];
     render();
     saveToLocalStorage();
   }
@@ -543,6 +717,10 @@ document.getElementById('importBtn').addEventListener('click', ()=>{
     const restored = decodeState(input);
     Object.keys(state).forEach(k=>delete state[k]);
     Object.assign(state, restored);
+    pickHistory = Object.keys(restored).map(name=>{
+      const pl = PLAYERS.find(p=>p.n===name);
+      return pl ? {n:pl.n, p:pl.p} : null;
+    }).filter(Boolean);
     render();
     saveToLocalStorage();
     setSaveIndicator("Restored from code");
@@ -559,7 +737,15 @@ function setSaveIndicator(text){
 function openModal(type){
   currentModal = type;
   const sheet = document.getElementById('modalSheet');
-  if(type==='roster'){
+  if(type==='pulse'){
+    sheet.innerHTML = `
+      <div class="modal-header">
+        <h3 class="modal-title">Draft Pulse</h3>
+        <button class="modal-close" id="modalCloseBtn">Close</button>
+      </div>
+      <div id="modalAlertsPanel">${getAlertsHTML()}</div>
+    `;
+  } else if(type==='roster'){
     sheet.innerHTML = `
       <div class="modal-header">
         <h3 class="modal-title">My Roster</h3>
@@ -594,6 +780,10 @@ function openModal(type){
         const restored = decodeState(input);
         Object.keys(state).forEach(k=>delete state[k]);
         Object.assign(state, restored);
+        pickHistory = Object.keys(restored).map(name=>{
+          const pl = PLAYERS.find(p=>p.n===name);
+          return pl ? {n:pl.n, p:pl.p} : null;
+        }).filter(Boolean);
         render();
         saveToLocalStorage();
         setSaveIndicator("Restored from code");
@@ -611,11 +801,139 @@ function closeModal(){
   document.getElementById('modalBackdrop').classList.remove('open');
 }
 
+document.getElementById('tabPulse').addEventListener('click', ()=>openModal('pulse'));
 document.getElementById('tabRoster').addEventListener('click', ()=>openModal('roster'));
 document.getElementById('tabSave').addEventListener('click', ()=>openModal('save'));
 document.getElementById('modalBackdrop').addEventListener('click', (e)=>{
   if(e.target.id==='modalBackdrop') closeModal();
 });
+
+// ---- Sleeper Live Sync ----
+const SYNC_CONFIG_KEY = "local86d-sleeper-sync-config";
+let syncTimer = null;
+let syncDraftId = null;
+let syncUserId = null;
+let syncSeenPickNos = new Set();
+
+function setSyncStatus(text, cls){
+  const el = document.getElementById('syncStatus');
+  if(el){ el.textContent = text; el.className = "sync-status " + cls; }
+}
+
+function autoApplyPick(pl, isMine){
+  const id = pid(pl);
+  if(state[id]) return false; // already marked (manually or previously synced)
+  state[id] = isMine ? "mine" : "taken";
+  pickHistory.push({n:pl.n, p:pl.p});
+  return true;
+}
+
+async function fetchAndApplyPicks(){
+  if(!syncDraftId) return;
+  try{
+    const res = await fetch(`https://api.sleeper.app/v1/draft/${syncDraftId}/picks`);
+    if(!res.ok) throw new Error("bad response");
+    const picks = await res.json();
+    let changed = false;
+    let unmatched = 0;
+    picks.forEach(pick=>{
+      if(syncSeenPickNos.has(pick.pick_no)) return;
+      syncSeenPickNos.add(pick.pick_no);
+      const meta = pick.metadata || {};
+      const fullName = `${meta.first_name||""} ${meta.last_name||""}`.trim();
+      const norm = normalizeName(fullName);
+      const matched = PLAYERS_BY_NORM[norm];
+      if(matched){
+        const isMine = syncUserId && pick.picked_by === syncUserId;
+        if(autoApplyPick(matched, isMine)) changed = true;
+      } else if(fullName) {
+        unmatched++;
+      }
+    });
+    if(changed){
+      render();
+      saveToLocalStorage();
+    }
+    const now = new Date().toLocaleTimeString();
+    setSyncStatus(`Connected — last synced ${now}${unmatched?` (${unmatched} picks not on this board, likely deep bench/K/DEF)`:""}`, "on");
+  }catch(e){
+    setSyncStatus("Sync error — couldn't reach Sleeper. Will keep retrying, or fall back to tapping manually.", "err");
+  }
+}
+
+async function connectSleeperSync(leagueId, username, directDraftId){
+  setSyncStatus("Connecting...", "off");
+  try{
+    if(directDraftId){
+      syncDraftId = directDraftId;
+    } else {
+      const leagueRes = await fetch(`https://api.sleeper.app/v1/league/${leagueId}`);
+      if(!leagueRes.ok) throw new Error("league not found");
+      const league = await leagueRes.json();
+      if(!league.draft_id) throw new Error("no draft_id on league");
+      syncDraftId = league.draft_id;
+    }
+
+    if(username){
+      try{
+        const userRes = await fetch(`https://api.sleeper.app/v1/user/${username}`);
+        if(userRes.ok){
+          const user = await userRes.json();
+          syncUserId = user.user_id || null;
+        }
+      }catch(e){ /* non-fatal — picks just won't be tagged "mine" automatically */ }
+    }
+
+    localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify({leagueId, username, directDraftId}));
+    syncSeenPickNos = new Set();
+    document.getElementById('syncConnectBtn').style.display = "none";
+    document.getElementById('syncDisconnectBtn').style.display = "block";
+    document.getElementById('syncLeagueId').disabled = true;
+    document.getElementById('syncDraftId').disabled = true;
+    document.getElementById('syncUsername').disabled = true;
+    setSyncStatus(`Connected to draft ${syncDraftId} — syncing every 5 seconds`, "on");
+    fetchAndApplyPicks();
+    syncTimer = setInterval(fetchAndApplyPicks, 5000);
+  }catch(e){
+    setSyncStatus("Couldn't connect — double check the League ID or Draft ID and try again.", "err");
+  }
+}
+
+function disconnectSleeperSync(){
+  clearInterval(syncTimer);
+  syncTimer = null;
+  syncDraftId = null;
+  syncUserId = null;
+  localStorage.removeItem(SYNC_CONFIG_KEY);
+  document.getElementById('syncConnectBtn').style.display = "block";
+  document.getElementById('syncDisconnectBtn').style.display = "none";
+  document.getElementById('syncLeagueId').disabled = false;
+  document.getElementById('syncDraftId').disabled = false;
+  document.getElementById('syncUsername').disabled = false;
+  setSyncStatus("Not connected — picks won't auto-update until you connect.", "off");
+}
+
+document.getElementById('syncConnectBtn').addEventListener('click', ()=>{
+  const leagueId = document.getElementById('syncLeagueId').value.trim();
+  const draftIdDirect = document.getElementById('syncDraftId').value.trim();
+  const username = document.getElementById('syncUsername').value.trim();
+  if(!leagueId && !draftIdDirect){ alert("Paste either your Sleeper League ID or a Draft ID first."); return; }
+  connectSleeperSync(leagueId, username, draftIdDirect || null);
+});
+document.getElementById('syncDisconnectBtn').addEventListener('click', disconnectSleeperSync);
+
+(function restoreSyncConfig(){
+  try{
+    const raw = localStorage.getItem(SYNC_CONFIG_KEY);
+    if(raw){
+      const cfg = JSON.parse(raw);
+      document.getElementById('syncLeagueId').value = cfg.leagueId || "";
+      document.getElementById('syncDraftId').value = cfg.directDraftId || "";
+      if(cfg.username) document.getElementById('syncUsername').value = cfg.username;
+      if(cfg.leagueId || cfg.directDraftId) connectSleeperSync(cfg.leagueId, cfg.username, cfg.directDraftId);
+    }
+  }catch(e){ /* ignore */ }
+})();
 
 render();
 loadFromLocalStorage();
