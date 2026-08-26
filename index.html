@@ -261,6 +261,7 @@
       <input class="sync-input" id="syncUsername" placeholder="Your Sleeper username" value="DaddyShitTalk">
       <button class="reset-btn" id="syncConnectBtn" style="margin-bottom:8px;">Connect &amp; start syncing</button>
       <button class="reset-btn" id="syncDisconnectBtn" style="display:none;">Stop syncing</button>
+      <button class="reset-btn" id="syncNowBtn" style="display:none; margin-top:8px;">Sync now</button>
       <div class="legend" style="margin-top:8px;">Find your League ID in the Sleeper app: League &rarr; Settings, or in the web URL (sleeper.com/leagues/<b>xxxxxxxxxx</b>). <b>Mock drafts aren't part of a league</b> &mdash; for those, open the mock draft room and grab the ID from the URL (sleeper.com/draft/nfl/<b>xxxxxxxxxx</b>), then paste it into the Draft ID box instead.</div>
     </div>
     <div class="card">
@@ -861,18 +862,37 @@ async function fetchAndApplyPicks(){
   }
 }
 
-async function connectSleeperSync(leagueId, username, directDraftId){
+async function connectSleeperSync(leagueId, username, directDraftId, opts){
+  opts = opts || {};
   setSyncStatus("Connecting...", "off");
   try{
+    let newDraftId;
     if(directDraftId){
-      syncDraftId = directDraftId;
+      newDraftId = directDraftId;
     } else {
       const leagueRes = await fetch(`https://api.sleeper.app/v1/league/${leagueId}`);
       if(!leagueRes.ok) throw new Error("league not found");
       const league = await leagueRes.json();
       if(!league.draft_id) throw new Error("no draft_id on league");
-      syncDraftId = league.draft_id;
+      newDraftId = league.draft_id;
     }
+
+    // If this is a different draft than last time and the board already has picks marked,
+    // offer to reset so old progress doesn't bleed into the new draft.
+    if(!opts.skipResetCheck){
+      const prevRaw = localStorage.getItem(SYNC_CONFIG_KEY);
+      let prevDraftId = null;
+      try{ prevDraftId = prevRaw ? (JSON.parse(prevRaw).resolvedDraftId || null) : null; }catch(e){}
+      if(prevDraftId && prevDraftId !== newDraftId && Object.keys(state).length>0){
+        const wantsReset = confirm("This looks like a different draft than last time, but your board still has picks marked from before. Reset the board so it starts fresh for this draft?");
+        if(wantsReset){
+          Object.keys(state).forEach(k=>delete state[k]);
+          pickHistory = [];
+        }
+      }
+    }
+
+    syncDraftId = newDraftId;
 
     if(username){
       try{
@@ -884,14 +904,17 @@ async function connectSleeperSync(leagueId, username, directDraftId){
       }catch(e){ /* non-fatal — picks just won't be tagged "mine" automatically */ }
     }
 
-    localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify({leagueId, username, directDraftId}));
+    localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify({leagueId, username, directDraftId, resolvedDraftId:syncDraftId}));
     syncSeenPickNos = new Set();
     document.getElementById('syncConnectBtn').style.display = "none";
     document.getElementById('syncDisconnectBtn').style.display = "block";
+    document.getElementById('syncNowBtn').style.display = "block";
     document.getElementById('syncLeagueId').disabled = true;
     document.getElementById('syncDraftId').disabled = true;
     document.getElementById('syncUsername').disabled = true;
     setSyncStatus(`Connected to draft ${syncDraftId} — syncing every 5 seconds`, "on");
+    render();
+    saveToLocalStorage();
     fetchAndApplyPicks();
     syncTimer = setInterval(fetchAndApplyPicks, 5000);
   }catch(e){
@@ -907,6 +930,7 @@ function disconnectSleeperSync(){
   localStorage.removeItem(SYNC_CONFIG_KEY);
   document.getElementById('syncConnectBtn').style.display = "block";
   document.getElementById('syncDisconnectBtn').style.display = "none";
+  document.getElementById('syncNowBtn').style.display = "none";
   document.getElementById('syncLeagueId').disabled = false;
   document.getElementById('syncDraftId').disabled = false;
   document.getElementById('syncUsername').disabled = false;
@@ -921,6 +945,18 @@ document.getElementById('syncConnectBtn').addEventListener('click', ()=>{
   connectSleeperSync(leagueId, username, draftIdDirect || null);
 });
 document.getElementById('syncDisconnectBtn').addEventListener('click', disconnectSleeperSync);
+document.getElementById('syncNowBtn').addEventListener('click', ()=>{
+  setSyncStatus("Syncing now...", "on");
+  fetchAndApplyPicks();
+});
+
+// Catch up immediately when this tab regains focus — background tabs get throttled
+// by the browser, so the 5-second timer can lag while you're looking at Sleeper instead.
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible' && syncDraftId){
+    fetchAndApplyPicks();
+  }
+});
 
 (function restoreSyncConfig(){
   try{
@@ -930,7 +966,7 @@ document.getElementById('syncDisconnectBtn').addEventListener('click', disconnec
       document.getElementById('syncLeagueId').value = cfg.leagueId || "";
       document.getElementById('syncDraftId').value = cfg.directDraftId || "";
       if(cfg.username) document.getElementById('syncUsername').value = cfg.username;
-      if(cfg.leagueId || cfg.directDraftId) connectSleeperSync(cfg.leagueId, cfg.username, cfg.directDraftId);
+      if(cfg.leagueId || cfg.directDraftId) connectSleeperSync(cfg.leagueId, cfg.username, cfg.directDraftId, {skipResetCheck:true});
     }
   }catch(e){ /* ignore */ }
 })();
