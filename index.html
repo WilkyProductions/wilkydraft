@@ -308,8 +308,8 @@ const PLAYERS = [
 {r:2,n:"Jahmyr Gibbs",p:"RB",t:"DET",tier:1},
 {r:3,n:"Christian McCaffrey",p:"RB",t:"SF",tier:1,flag:"THIN DEPTH",note:"Elite when healthy, but SF's backup RBs are both banged up. Injury history is real."},
 {r:4,n:"Ja'Marr Chase",p:"WR",t:"CIN",tier:1},
-{r:5,n:"Puka Nacua",p:"WR",t:"LAR",tier:1},
-{r:6,n:"Jaxon Smith-Njigba",p:"WR",t:"SEA",tier:1},
+{r:5,n:"Jaxon Smith-Njigba",p:"WR",t:"SEA",tier:1,note:"Passed Nacua as the consensus WR2 in the latest rankings update — momentum is real."},
+{r:6,n:"Puka Nacua",p:"WR",t:"LAR",tier:1},
 {r:7,n:"Jonathan Taylor",p:"RB",t:"IND",tier:1},
 {r:8,n:"De'Von Achane",p:"RB",t:"MIA",tier:1},
 // Tier 2
@@ -319,7 +319,7 @@ const PLAYERS = [
 {r:12,n:"Justin Jefferson",p:"WR",t:"MIN",tier:2},
 {r:13,n:"CeeDee Lamb",p:"WR",t:"DAL",tier:2},
 {r:14,n:"Chase Brown",p:"RB",t:"CIN",tier:2},
-{r:15,n:"Kenneth Walker III",p:"RB",t:"KC",tier:2},
+{r:15,n:"Kenneth Walker III",p:"RB",t:"KC",tier:2,note:"Fresh buzz has KC scheming him into the screen game heavily — some rankings now have him ahead of Saquon Barkley."},
 {r:16,n:"Brock Bowers",p:"TE",t:"LV",tier:2,note:"Best TE in the game by a wide margin — worth reaching for if the run starts."},
 // Tier 3
 {r:17,n:"Drake London",p:"WR",t:"ATL",tier:3},
@@ -329,8 +329,8 @@ const PLAYERS = [
 {r:21,n:"Saquon Barkley",p:"RB",t:"PHI",tier:3},
 {r:22,n:"Josh Jacobs",p:"RB",t:"GB",tier:3},
 {r:23,n:"Omarion Hampton",p:"RB",t:"LAC",tier:3},
-{r:24,n:"Ashton Jeanty",p:"RB",t:"LV",tier:3,flag:"ANKLE",note:"Sprained ankle in practice — sounds like it isn't the scary knee injury first feared, but timetable is unconfirmed. Check status before you're on the clock."},
-{r:25,n:"Malik Nabers",p:"WR",t:"NYG",tier:3,flag:"MONITOR",note:"Trending toward being ready for Week 1, practicing without the red non-contact jersey — good sign."},
+{r:24,n:"Ashton Jeanty",p:"RB",t:"LV",tier:3,flag:"ANKLE",note:"Update as of Aug 28: sprain is believed to be more low-ankle than high (good news), not season-ending, but coach still won't confirm a Week 1 timeline. Rookie Mike Washington is getting first-team reps as the Plan B. Real risk — check status again right before you're on the clock."},
+{r:25,n:"Malik Nabers",p:"WR",t:"NYG",tier:3,flag:"MONITOR",note:"Continuing to trend toward Week 1, practicing without the non-contact jersey. His ADP is still catching up to the good news — solid value if he falls to you."},
 // Tier 4
 {r:26,n:"A.J. Brown",p:"WR",t:"NE",tier:4},
 {r:27,n:"Chris Olave",p:"WR",t:"NO",tier:4},
@@ -345,6 +345,7 @@ const PLAYERS = [
 // Tier 5
 {r:36,n:"Lamar Jackson",p:"QB",t:"BAL",tier:5},
 {r:37,n:"Travis Etienne Jr.",p:"RB",t:"NO",tier:5},
+{r:38,n:"TreVeon Henderson",p:"RB",t:"NE",tier:5,note:"Upgrade: fresh reporting has him more like a round-3 value now, not a late-round flier. Efficient pass-catching role for NE after a slow rookie finish."},
 {r:38,n:"Quinshon Judkins",p:"RB",t:"CLE",tier:5},
 {r:39,n:"Nico Collins",p:"WR",t:"HOU",tier:5},
 {r:40,n:"Jayden Daniels",p:"QB",t:"WSH",tier:5},
@@ -372,11 +373,12 @@ const PLAYERS = [
 {r:60,n:"Justin Herbert",p:"QB",t:"LAC",tier:7},
 {r:61,n:"Tee Higgins",p:"WR",t:"CIN",tier:7},
 {r:62,n:"Rome Odunze",p:"WR",t:"CHI",tier:7,note:"Chicago's clear WR1 now that Luther Burden III is banged up — good value."},
-{r:63,n:"David Montgomery",p:"RB",t:"HOU",tier:7},
+{r:63,n:"David Montgomery",p:"RB",t:"HOU",tier:7,note:"Backfield is trending closer to a real 50/50 split with Woody Marks than expected — his workload is less safe than his ADP suggests."},
 {r:64,n:"Tony Pollard",p:"RB",t:"TEN",tier:7},
 {r:65,n:"George Kittle",p:"TE",t:"SF",tier:7},
+{r:65.5,n:"Tucker Kraft",p:"TE",t:"GB",tier:7,note:"Coming off a torn ACL but expected to be a full-go Week 1, no snap-count limit per the team. Was playing like a top-5 TE before the injury — real value if he lasts this long."},
+{r:65.6,n:"Patrick Mahomes",p:"QB",t:"KC",tier:7,note:"Coming off knee surgery but hasn't missed a practice — good sign. Great late QB value if he's this far down the board, though rushing upside may be capped this year."},
 {r:66,n:"Rhamondre Stevenson",p:"RB",t:"NE",tier:7},
-{r:67,n:"TreVeon Henderson",p:"RB",t:"NE",tier:7},
 {r:68,n:"DK Metcalf",p:"WR",t:"PIT",tier:7},
 {r:69,n:"Kenneth Gainwell",p:"RB",t:"TB",tier:7},
 {r:70,n:"Jaxon Dart",p:"QB",t:"NYG",tier:7},
@@ -384,13 +386,18 @@ const PLAYERS = [
 // Tier 8 — late-round value & sleepers
 {r:72,n:"Deebo Samuel Sr.",p:"WR",t:"SF",tier:8,note:"Signed after Ricky Pearsall's season-ending knee surgery — walks into real target share."},
 {r:73,n:"Juwan Johnson",p:"WR",t:"NO",tier:8,note:"Saints' No. 2 pass-catcher behind Olave with a WR-friendly target share while Jordyn Tyson is out."},
-{r:74,n:"Woody Marks",p:"RB",t:"HOU",tier:8,note:"Impressing in camp, near-even snap split with Montgomery. Great handcuff/upside stash."},
+{r:74,n:"Woody Marks",p:"RB",t:"HOU",tier:8,note:"Backfield split with Montgomery is trending toward true 50/50 per beat reporters — best handcuff/upside stash on the board."},
+{r:74.5,n:"Isaiah Likely",p:"TE",t:"NYG",tier:8,note:"Reportedly Jaxon Dart's favorite target in camp 11-on-11s, well ahead of the other Giants pass-catchers. Sneaky TE streamer/sleeper late."},
 {r:75,n:"Tyrone Tracy Jr.",p:"RB",t:"NYG",tier:8,flag:"CROWDED",note:"Part of the same muddy Giants backfield as Skattebo/Harris — talent is there, touches aren't guaranteed."},
 {r:76,n:"Najee Harris",p:"RB",t:"NYG",tier:8,flag:"CROWDED"},
-{r:77,n:"De'Zhaun Stribling",p:"WR",t:"SF",tier:8,note:"Rookie sleeper who could carve out snaps behind Evans/Samuel."},
+{r:77,n:"De'Zhaun Stribling",p:"WR",t:"SF",tier:8,note:"Breakout alert: caught 7 of 8 targets for 63 yards with highlight-reel grabs in his preseason debut. ADP is rocketing up — some rankers now have him ahead of fellow rookies Jordyn Tyson, Xavier Worthy and Matthew Golden. Grab him before this tier is common knowledge."},
 {r:78,n:"Luther Burden III",p:"WR",t:"CHI",tier:8,flag:"GROIN",note:"Missing the preseason with a groin injury; hopeful for Week 1 but his ADP has been sliding — Rome Odunze is the safer Bears WR right now."},
 {r:79,n:"Xavier Legette",p:"WR",t:"CAR",tier:8,note:"Snap share bump likely after Chris Brazzell's season-ending LCL tear."},
 {r:80,n:"Jalen Coker",p:"WR",t:"CAR",tier:8,note:"Biggest beneficiary of the Brazzell injury on target share — sleeper watch."},
+{r:81,n:"KC Concepcion",p:"WR",t:"CLE",tier:8,note:"Rookie thriving in camp — outshining the rest of a thin Browns WR room, has real draft capital (24th overall) to back it up."},
+{r:82,n:"Denzel Boston",p:"WR",t:"CLE",tier:8,note:"The other half of Cleveland's rookie WR breakout duo alongside Concepcion — worth a very late-round dart throw."},
+// Tier 9 — waiver-watch only, not for the actual draft
+{r:999,n:"Greg Desrosiers Jr.",p:"RB",t:"LAC",tier:9,note:"Undrafted rookie buried behind Omarion Hampton, but just exploded for 118 yards and a TD on 9 carries in the preseason finale. Not draftable in a 10-team league right now — Hampton owns this backfield — but watch waivers if he makes the roster and starts stealing change-of-pace touches."},
 ];
 
 const state = {}; // id -> 'taken' | 'mine'
@@ -516,6 +523,7 @@ const tierNames = {
   6:["TIER 6","Flex & QB streamers begin"],
   7:["TIER 7","Depth & upside"],
   8:["TIER 8","Late-round sleepers / handcuffs"],
+  9:["WAIVER WATCH","Not for your draft — stash these names to check on waivers in-season"],
 };
 
 const ROSTER_SLOTS = [
